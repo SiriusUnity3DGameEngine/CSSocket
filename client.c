@@ -38,7 +38,12 @@ int main(int argc, char *argv[]){
             tok= strtok_r(NULL, delim, &save);
             strcpy(client->sendingFile, tok);
 
-            sendPackageAndFree(server, actionPack(INCOMING_FILE, client->id, to));
+            if( doesFileExist( client->sendingFile ) ) {
+                sendPackageAndFree(server, actionPack(INCOMING_FILE, client->id, to));
+            } else {
+                printf("File doesnt exist: %s\n", client->sendingFile);
+                continue;
+            }
         }
         else{
             sendPackageAndFree(server, strPack(cmd, client->id, SERVER));
@@ -143,12 +148,18 @@ void* ClientThread(void* _client){
                 printf("[%d] wants to send file, accepting\n", package->header.from);
 
                 sendPackageAndFree(server, actionPack(ACCEPT_FILE, client->id, package->header.from));
+
+                recvFile(client);
             }
             else if(action == ACCEPT_FILE){
                 printf("[%d] accepted file transfer. Now sending file\n", package->header.from);
 
                 client->lastResponse= NULL;
                 client->responseWaiting= FALSE;
+
+                // sending file
+                int to= package->header.from;
+                sendFile(client, package->header.from, client->sendingFile);
             }
             else if(action == CLIENT_NOT_EXIST){
                 printf("Client doesnt exist! Cant send file!\n");
@@ -158,55 +169,66 @@ void* ClientThread(void* _client){
             }
         }
         else{
-            debug("This package type is unknown: %d", package->header.type);
+            //debug("This package type is unknown: %d", package->header.type);
         }
-
-        /*COMM_TYPE commType= getCommType(server);
-        if(commType == INT){
-            if (fileReceiving==TRUE){
-                int size= readInt(server);
-                sizeLeft= size;
-            }
-            else{
-                int action= readInt(server);
-
-                if(action== INCOMING_FILE){
-                    // send accept action
-                    writeInt(server, ACCEPT_FILE);
-                    debug("Incoming file, accepting..");
-                }
-                if(action== ACCEPT_FILE){
-                    // start sending file
-                    struct stat st;
-                    stat(client->sendingFile, &st);
-                    int size = st.st_size;
-
-                    writeInt(server, size);
-                    writeStr(server, client->sendingFile);
-                    debug("File accepted, sending size and filename");
-                }
-                else{
-                    perror("Client thread unexpected action");
-                }
-            }
-
-        }
-        else if(commType == STRING){
-            if (fileReceiving==TRUE){
-                char* _filename= readStr(server);
-                strcpy(filename, _filename);
-                free(_filename);
-
-                printf("File is going to receive %s, with sizeof %d\n", filename, sizeLeft);
-                
-            }
-            else{
-                client->lastResponse= readStr(server);
-                client->responseWaiting= FALSE;
-            }
-        }
-        else{
-            //perror("Client thread unexpected comm type");
-        }*/
     }
+}
+
+void sendFile(Client* client, int to, char* filepath){
+    struct stat st;
+    stat(filepath, &st);
+    int size = st.st_size;
+
+    sendPackageAndFree(client->fd, intPack(size, client->id, to));
+    sendPackageAndFree(client->fd, strPack(filepath, client->id, to));
+
+    debug("File info has been sent, size:%d, path:%s", size, filepath);
+
+    int sizeLeft= size;
+
+    char buffer[CHUNK_SIZE];
+
+    int fd= open(filepath, O_RDONLY);
+
+    while(sizeLeft > 0){
+        int csize= read(fd, &buffer, CHUNK_SIZE);
+
+        sendPackageAndFree(client->fd, bytePack(buffer, csize, client->id, to));
+        sizeLeft-= csize;
+        //debug("%d", sizeLeft);
+
+        usleep(WAIT_TIME);
+    }
+
+    debug("File has been sended!");
+    perror("ok");
+}
+
+void recvFile(Client* client){
+    Package* package;
+
+    package= readPackage(client->fd);
+    int size= getInt(package);
+
+    package= readPackage(client->fd);
+    char* filepath= getStr(package);
+
+    debug("File info has been received, size:%d, path:%s", size, filepath);
+
+    int sizeLeft= size;
+    //char buffer[CHUNK_SIZE];
+
+    int fd= open(filepath, O_CREAT |  O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
+    while(sizeLeft > 0){
+        package= readPackage(client->fd);
+
+        write(fd, package->data, package->header.size);
+
+        sizeLeft-= package->header.size;
+    }
+
+    debug("File has been recevied!");
+    perror("ok");
+
 }

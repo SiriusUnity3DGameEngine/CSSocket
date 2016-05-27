@@ -20,4 +20,7 @@ Client* connectToServer(char *host, int port);
 
 void* ClientThread(void* );
 
+void sendFile(Client* client, int to, char* filepath);
+void recvFile(Client* client);
+
 #endif

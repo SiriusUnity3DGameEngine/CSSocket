@@ -184,11 +184,11 @@ void* ElciThread (void* _connInfo){
 
             // try to transfer package to real owner
             if(to != NULL){
-                debug("Server transfering package to: %d", package->header.to);
+                //debug("Server transfering package to: %d", package->header.to);
                 sendPackageAndFree(to->clientFD, package);
             }
             else{
-                debug("Server cant transfer this package to: %d", package->header.to);
+                debug("Server cant transfer this package to: %d, size was: %d, type was: %d", package->header.to, package->header.size, package->header.type);
                 sendPackageAndFree(clientFD, actionPack(CLIENT_NOT_EXIST, SERVER, clientID));
             }
 

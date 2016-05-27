@@ -10,11 +10,13 @@
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include <fcntl.h>
 
 #define TRUE 1
 #define FALSE 0
 
-#define CHUNK_SIZE 1024
+#define CHUNK_SIZE 2048
+#define WAIT_TIME 1000
 
 #define SERVER -1
 
@@ -56,5 +58,9 @@ Package* pack(const char* d, int size, PackageType type, int from, int to);
 Package* intPack(int n, int from, int to);
 Package* strPack(const char* str, int from, int to);
 Package* actionPack(ActionType action, int from, int to);
+Package* bytePack(const char* byte, int size, int from, int to);
+
+// file operations
+int doesFileExist(const char *filename);
 
 #endif

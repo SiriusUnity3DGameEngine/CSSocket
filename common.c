@@ -92,3 +92,15 @@ Package* strPack(const char* str, int from, int to){
 Package* actionPack(ActionType action, int from, int to){
     return pack((char*)&action, sizeof(ActionType), ACTION, from, to);
 }
+
+Package* bytePack(const char* byte, int size, int from, int to){
+	return pack(byte, size, BYTE, from, to);
+}
+
+
+// file operations
+int doesFileExist(const char *filename) {
+    struct stat st;
+    int result = stat(filename, &st);
+    return result == 0;
+}
